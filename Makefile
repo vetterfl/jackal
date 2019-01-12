@@ -1,5 +1,5 @@
 install:
-	@export GO111MODULE=on && go install -ldflags="-s -w" github.com/ortuman/jackal
+	@export GO111MODULE=on && go install -ldflags="-s -w" github.com/vetterfl/jackal
 
 install-tools:
 	@export GO111MODULE=on && go get -u \
