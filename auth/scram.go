@@ -205,9 +205,9 @@ func (s *Scram) handleStart(elem xmpp.XElement) error {
 	s.user = user
 
 	s.srvNonce = cNonce + "-" + uuid.New()
-	s.salt = util.RandomBytes(32)
-	sb64 := base64.StdEncoding.EncodeToString(s.salt)
-	s.firstMessage = fmt.Sprintf("r=%s,s=%s,i=%d", s.srvNonce, sb64, iterationsCount)
+	//s.salt = util.RandomBytes(32)
+	//sb64 := base64.StdEncoding.EncodeToString(s.salt)
+	s.firstMessage = fmt.Sprintf("r=%s,s=%s,i=%d", s.srvNonce, s.user.Salt, iterationsCount)
 
 	respElem := xmpp.NewElementNamespace("challenge", saslNamespace)
 	respElem.SetText(base64.StdEncoding.EncodeToString([]byte(s.firstMessage)))
@@ -226,7 +226,11 @@ func (s *Scram) handleChallenged(elem xmpp.XElement) error {
 	initialMessage := s.params.String()
 	clientFinalMessageBare := fmt.Sprintf("c=%s,r=%s", c, s.srvNonce)
 
-	saltedPassword := s.pbkdf2([]byte(s.user.Password))
+	//saltedPassword := s.pbkdf2([]byte(s.user.Password))
+	saltedPassword, err := base64.StdEncoding.DecodeString(s.user.Password)
+	if err != nil {
+		return err
+	}
 	clientKey := s.hmac([]byte("Client Key"), saltedPassword)
 	storedKey := s.hash(clientKey)
 	authMessage := initialMessage + "," + s.firstMessage + "," + clientFinalMessageBare

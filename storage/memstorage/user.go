@@ -5,12 +5,16 @@
 
 package memstorage
 
-import "github.com/ortuman/jackal/model"
+import (
+	"github.com/ortuman/jackal/log"
+	"github.com/ortuman/jackal/model"
+)
 
 // InsertOrUpdateUser inserts a new user entity into storage,
 // or updates it in case it's been previously inserted.
 func (m *Storage) InsertOrUpdateUser(user *model.User) error {
 	return m.inWriteLock(func() error {
+		log.Infof("Storage: Inserted new user %s - Hash: %s Salt: %s", user.Username, user.Password, user.Salt) // temporary debug
 		m.users[user.Username] = user
 		return nil
 	})

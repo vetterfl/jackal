@@ -16,6 +16,7 @@ import (
 type User struct {
 	Username       string
 	Password       string
+	Salt           string
 	LastPresence   *xmpp.Presence
 	LastPresenceAt time.Time
 }

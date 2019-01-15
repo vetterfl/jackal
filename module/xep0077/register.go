@@ -6,13 +6,20 @@
 package xep0077
 
 import (
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/base64"
+	"hash"
+
 	"github.com/ortuman/jackal/log"
 	"github.com/ortuman/jackal/model"
 	"github.com/ortuman/jackal/module/xep0030"
 	"github.com/ortuman/jackal/storage"
 	"github.com/ortuman/jackal/stream"
+	"github.com/ortuman/jackal/util"
 	"github.com/ortuman/jackal/xmpp"
 	"github.com/ortuman/jackal/xmpp/jid"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 const mailboxSize = 2048
@@ -23,9 +30,10 @@ const xep077RegisteredCtxKey = "xep0077:registered"
 
 // Config represents XMPP In-Band Registration module (XEP-0077) configuration.
 type Config struct {
-	AllowRegistration bool `yaml:"allow_registration"`
-	AllowChange       bool `yaml:"allow_change"`
-	AllowCancel       bool `yaml:"allow_cancel"`
+	AllowRegistration bool   `yaml:"allow_registration"`
+	AllowChange       bool   `yaml:"allow_change"`
+	AllowCancel       bool   `yaml:"allow_cancel"`
+	HashingAlgorythm  string `yaml:"hashing_algorythm"`
 }
 
 // Register represents an in-band server stream module.
@@ -33,6 +41,8 @@ type Register struct {
 	cfg        *Config
 	actorCh    chan func()
 	shutdownCh chan chan error
+	h          func() hash.Hash
+	hKeyLen    int
 }
 
 // New returns an in-band registration IQ handler.
@@ -42,6 +52,17 @@ func New(config *Config, disco *xep0030.DiscoInfo) *Register {
 		actorCh:    make(chan func(), mailboxSize),
 		shutdownCh: make(chan chan error),
 	}
+	switch r.cfg.HashingAlgorythm {
+	case "SHA-1":
+		r.h = sha1.New
+		r.hKeyLen = sha1.Size
+	case "SHA-256":
+		r.h = sha256.New
+		r.hKeyLen = sha256.Size
+	default:
+		r.cfg.HashingAlgorythm = "none"
+	}
+
 	go r.loop()
 	if disco != nil {
 		disco.RegisterServerFeature(registerNamespace)
@@ -155,9 +176,19 @@ func (x *Register) registerNewUser(iq *xmpp.IQ, query xmpp.XElement, stm stream.
 		stm.SendElement(iq.ConflictError())
 		return
 	}
+	var hash, salt string
+	if x.cfg.HashingAlgorythm != "none" {
+		h, s := x.createHash([]byte(passwordEl.Text()))
+		hash = base64.StdEncoding.EncodeToString(h)
+		salt = base64.StdEncoding.EncodeToString(s)
+	} else {
+		hash = passwordEl.Text()
+		salt = ""
+	}
 	user := model.User{
 		Username:     userEl.Text(),
-		Password:     passwordEl.Text(),
+		Password:     hash,
+		Salt:         salt,
 		LastPresence: xmpp.NewPresence(stm.JID(), stm.JID(), xmpp.UnavailableType),
 	}
 	if err := storage.InsertOrUpdateUser(&user); err != nil {
@@ -226,4 +257,10 @@ func (x *Register) isValidToJid(j *jid.JID, stm stream.C2S) bool {
 		return false
 	}
 	return true
+}
+
+func (x *Register) createHash(p []byte) ([]byte, []byte) {
+	s := util.RandomBytes(32)
+	h := pbkdf2.Key(p, s, 4096, x.hKeyLen, x.h)
+	return h, s
 }

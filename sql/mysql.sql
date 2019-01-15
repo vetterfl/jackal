@@ -6,6 +6,7 @@
 CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(256) PRIMARY KEY,
     password TEXT NOT NULL,
+    salt TEXT NOT NULL,
     last_presence TEXT NOT NULL,
     last_presence_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,

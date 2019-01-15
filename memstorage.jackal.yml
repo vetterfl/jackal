@@ -26,10 +26,10 @@ storage:
 
 router:
   hosts:
-    - name: localhost
+    - name: manjaro.fritz.box
       tls:
-        privkey_path: ""
-        cert_path: ""
+        privkey_path: ".cert/new.cert.key"
+        cert_path: ".cert/new.cert.cert"
 
 modules:
   enabled:
@@ -90,9 +90,9 @@ c2s:
 
     sasl:
       - plain
-      - digest_md5
+      #- digest_md5
       - scram_sha_1
-      - scram_sha_256
+      #- scram_sha_256
 
 #s2s:
 #    dial_timeout: 15
